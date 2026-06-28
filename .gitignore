@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.env
+data/audit.db
+data/documents/*
+data/uploads/*
+!data/documents/.gitkeep
+!data/uploads/.gitkeep
+.venv/
+venv/
+*.log

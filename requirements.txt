@@ -1,0 +1,11 @@
+foundry-local-sdk
+openai
+fastapi
+uvicorn[standard]
+pandas
+PyMuPDF
+python-docx
+openpyxl
+beautifulsoup4
+python-multipart
+pydantic
