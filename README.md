@@ -1,4 +1,4 @@
-# Summer School RAG Agent
+# ForgeLens
 
 A local-first RAG and correction-review application for the Microsoft Summer School
 project track: **Building Your First Local RAG Application with Foundry Local**.
@@ -6,6 +6,12 @@ project track: **Building Your First Local RAG Application with Foundry Local**.
 The app indexes private documents locally, answers questions with citations, analyzes
 student registration records, proposes structured corrections, routes every proposed
 change through human approval, and records the workflow in a SQLite audit log.
+
+## Name
+
+**ForgeLens** combines the Foundry Local runtime with the idea of a lens over private
+documents and operational records. It is short, demo-friendly, and easier to present
+than a generic RAG chatbot name.
 
 ## Why This Project Stands Out
 

@@ -1,5 +1,5 @@
 """
-Summer School RAG Agent backend.
+ForgeLens backend.
 
 FastAPI application with local-first RAG, student record correction, approval,
 export, and audit logging.
@@ -25,8 +25,8 @@ from rag import RAGPipeline
 
 
 app = FastAPI(
-    title="Summer School RAG Agent",
-    version="1.1.0",
+    title="ForgeLens",
+    version="2.0.0",
     description="Local-first RAG and human-in-the-loop correction agent.",
 )
 
@@ -95,7 +95,7 @@ async def save_upload(file: UploadFile, target_dir: Path) -> tuple[Path, str]:
 async def root():
     return {
         "status": "online",
-        "service": "Summer School RAG Agent",
+        "service": "ForgeLens",
         "docs": "/docs",
     }
 

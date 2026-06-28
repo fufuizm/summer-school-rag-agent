@@ -1,5 +1,5 @@
 """
-Test cases for Summer School RAG Agent.
+Test cases for ForgeLens.
 
 Run with:
     python -m pytest -v

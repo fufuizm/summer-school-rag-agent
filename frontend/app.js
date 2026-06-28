@@ -2,12 +2,25 @@ const API = window.localStorage.getItem("ragAgentApi") || "http://localhost:8000
 
 const state = {
   activeFileId: null,
+  viewTitles: {
+    chat: "Ask ForgeLens",
+    upload: "Ingest files",
+    corrections: "Review corrections",
+    records: "Inspect records",
+    audit: "Trace activity",
+  },
 };
 
 const el = (id) => document.getElementById(id);
 
 function setText(id, value) {
   el(id).textContent = value;
+}
+
+function renderIcons() {
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
 }
 
 function showToast(message) {
@@ -45,6 +58,7 @@ function switchTab(name) {
   document.querySelectorAll(".view").forEach((view) => {
     view.classList.toggle("active", view.id === `tab-${name}`);
   });
+  setText("view-title", state.viewTitles[name] || "ForgeLens");
   if (name === "audit") loadAudit();
   if (name === "records") loadRecords();
 }
@@ -52,6 +66,13 @@ function switchTab(name) {
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => switchTab(tab.dataset.tab));
 });
+
+function formatRuntime(runtime) {
+  if (runtime === "foundry_local") return "Foundry Local";
+  if (runtime === "fallback") return "Local fallback";
+  if (runtime === "not_loaded") return "Standby";
+  return runtime || "unknown";
+}
 
 async function refreshHealth() {
   try {
@@ -62,15 +83,14 @@ async function refreshHealth() {
     setText("pending-count", data.corrections?.pending ?? 0);
 
     const runtime = data.runtime?.runtime || "unknown";
-    const pill = el("runtime-pill");
-    pill.textContent = `Runtime: ${runtime}`;
-    pill.className = `runtime-pill ${runtime === "foundry_local" ? "good" : "warn"}`;
+    setText("runtime-pill", formatRuntime(runtime));
 
+    const dot = el("status-dot");
+    dot.className = `status-dot ${runtime === "foundry_local" ? "good" : ""}`;
     state.activeFileId = data.active_records_file || state.activeFileId;
   } catch {
-    const pill = el("runtime-pill");
-    pill.textContent = "Runtime: offline";
-    pill.className = "runtime-pill warn";
+    setText("runtime-pill", "offline");
+    el("status-dot").className = "status-dot offline";
   }
 }
 
@@ -94,8 +114,17 @@ async function loadDocuments() {
   }
 }
 
-async function uploadFile(input, path, resultId) {
-  const file = input.files[0];
+function setBusy(button, busy, label) {
+  if (!button) return;
+  button.disabled = busy;
+  if (label) {
+    const span = button.querySelector("span");
+    if (span) span.textContent = label;
+  }
+}
+
+async function uploadFile(input, path, resultId, providedFile = null) {
+  const file = providedFile || input.files[0];
   if (!file) return;
 
   const formData = new FormData();
@@ -122,17 +151,37 @@ async function uploadFile(input, path, resultId) {
   }
 }
 
-el("document-upload").addEventListener("change", (event) => {
-  uploadFile(event.target, "/api/upload/document", "document-result");
-});
+function setupUpload(inputId, apiPath, resultId) {
+  const input = el(inputId);
+  const zone = document.querySelector(`[data-drop-target="${inputId}"]`);
 
-el("records-upload").addEventListener("change", (event) => {
-  uploadFile(event.target, "/api/upload/records", "records-result");
-});
+  input.addEventListener("change", (event) => {
+    uploadFile(event.target, apiPath, resultId);
+  });
+
+  zone.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    zone.classList.add("dragging");
+  });
+
+  zone.addEventListener("dragleave", () => {
+    zone.classList.remove("dragging");
+  });
+
+  zone.addEventListener("drop", (event) => {
+    event.preventDefault();
+    zone.classList.remove("dragging");
+    uploadFile(input, apiPath, resultId, event.dataTransfer.files[0]);
+  });
+}
+
+setupUpload("document-upload", "/api/upload/document", "document-result");
+setupUpload("records-upload", "/api/upload/records", "records-result");
 
 el("refresh-docs").addEventListener("click", async () => {
   await loadDocuments();
   await refreshHealth();
+  showToast("Workspace refreshed");
 });
 
 el("clear-documents").addEventListener("click", async () => {
@@ -143,10 +192,11 @@ el("clear-documents").addEventListener("click", async () => {
   showToast("Document index cleared");
 });
 
-function appendMessage(role, text, sources = []) {
+function appendMessage(role, text, sources = [], options = {}) {
   const log = el("chat-log");
-  const item = node("div", `message ${role}`);
-  item.appendChild(node("div", "role", role === "user" ? "You" : "Agent"));
+  const item = node("div", `message ${role}${options.loading ? " loading" : ""}`);
+  if (options.id) item.id = options.id;
+  item.appendChild(node("div", "role", role === "user" ? "You" : "ForgeLens"));
   item.appendChild(node("div", "bubble", text));
 
   if (sources.length) {
@@ -160,28 +210,50 @@ function appendMessage(role, text, sources = []) {
 
   log.appendChild(item);
   log.scrollTop = log.scrollHeight;
+  return item;
 }
 
-el("chat-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const input = el("chat-input");
-  const query = input.value.trim();
-  if (!query) return;
+function removeNodeById(id) {
+  const element = document.getElementById(id);
+  if (element) element.remove();
+}
 
-  appendMessage("user", query);
+async function submitChat(query) {
+  const input = el("chat-input");
+  const send = el("chat-send");
+  const cleanQuery = query || input.value.trim();
+  if (!cleanQuery) return;
+
+  appendMessage("user", cleanQuery);
   input.value = "";
+  setBusy(send, true, "Thinking");
+  appendMessage("assistant", "Reading indexed context...", [], { id: "loading-message", loading: true });
 
   try {
     const data = await request("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query, top_k: 4 }),
+      body: JSON.stringify({ query: cleanQuery, top_k: 4 }),
     });
+    removeNodeById("loading-message");
     appendMessage("assistant", data.answer, data.sources || []);
     await refreshHealth();
   } catch (err) {
+    removeNodeById("loading-message");
     appendMessage("assistant", err.message);
+  } finally {
+    setBusy(send, false, "Send");
+    renderIcons();
   }
+}
+
+el("chat-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  submitChat();
+});
+
+document.querySelectorAll(".prompt-chip").forEach((chip) => {
+  chip.addEventListener("click", () => submitChat(chip.dataset.prompt));
 });
 
 async function analyzeCorrections() {
@@ -189,6 +261,8 @@ async function analyzeCorrections() {
     showToast("Upload a records file first");
     return;
   }
+  const button = el("analyze-records");
+  setBusy(button, true, "Analyzing");
   try {
     const data = await request("/api/correction/analyze", {
       method: "POST",
@@ -200,6 +274,9 @@ async function analyzeCorrections() {
     await refreshHealth();
   } catch (err) {
     showToast(err.message);
+  } finally {
+    setBusy(button, false, "Analyze");
+    renderIcons();
   }
 }
 
@@ -224,36 +301,42 @@ function renderCorrections(corrections) {
   list.className = "correction-list";
   corrections.forEach((correction) => {
     const item = node("article", `correction-item ${correction.risk_level}`);
-    item.appendChild(
+    const title = node("div", "correction-title");
+    title.appendChild(
       node(
         "strong",
         "",
         `Record ${correction.record_index + 1} - ${correction.issue_type.replaceAll("_", " ")}`
       )
     );
+    title.appendChild(node("span", `risk-pill ${correction.risk_level}`, correction.risk_level));
+    item.appendChild(title);
 
     const diff = node("div", "diff");
     diff.appendChild(node("span", "old", `${correction.field}: ${correction.current_value || "[empty]"}`));
     diff.appendChild(node("span", "new", `${correction.field}: ${correction.proposed_value}`));
     item.appendChild(diff);
 
-    item.appendChild(
-      node(
-        "div",
-        "meta",
-        `${correction.reason} Confidence: ${Math.round((correction.confidence || 0) * 100)}%`
-      )
-    );
+    item.appendChild(node("div", "meta", correction.reason));
+
+    const confidence = node("div", "confidence");
+    const confidenceFill = node("span");
+    confidenceFill.style.width = `${Math.round((correction.confidence || 0) * 100)}%`;
+    confidence.appendChild(confidenceFill);
+    item.appendChild(confidence);
 
     const actions = node("div", "actions");
-    const approve = node("button", "", "Approve");
+    const approve = node("button");
+    approve.innerHTML = '<i data-lucide="check"></i><span>Approve</span>';
     approve.addEventListener("click", () => approveCorrection(correction.correction_id, true));
-    const reject = node("button", "ghost danger", "Reject");
+    const reject = node("button", "ghost-button danger");
+    reject.innerHTML = '<i data-lucide="x"></i><span>Reject</span>';
     reject.addEventListener("click", () => approveCorrection(correction.correction_id, false));
     actions.append(approve, reject);
     item.appendChild(actions);
     list.appendChild(item);
   });
+  renderIcons();
 }
 
 async function approveCorrection(id, approved) {
@@ -348,6 +431,7 @@ async function loadAudit() {
 
 el("refresh-audit").addEventListener("click", loadAudit);
 
-appendMessage("assistant", "Upload the sample guide or student CSV, then ask a grounded question.");
+appendMessage("assistant", "ForgeLens is ready. Index a guide or student CSV, then ask a grounded question.");
 refreshHealth();
 loadDocuments();
+renderIcons();
