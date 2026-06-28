@@ -1,11 +1,11 @@
 Name,Email,Project,Language,Date
-Furkan Sarica,sarica.furkan@icloud.com,Local RAG,Turkish,10 July
-Fantastic Dragon,student123@mail.com,Quantum,English,20 July
-Ahmet Kaya,ahmet.kaya@mail.com,Stock Prediction,Turkish,5 August
+Ada Yilmaz,ada.yilmaz@example.com,Local RAG,Turkish,10 July
+Fantastic Dragon,student001@example.com,Quantum,English,20 July
+Ahmet Kaya,ahmet.kaya@example.com,Stock Prediction,Turkish,5 August
 Mehmet Yilmaz,mehmet@invalid,Foundry Local RAG,Turkish,15 July
-,Ahmet Demir demir@mail.com,Titanic,English,1 August
-John Doe,john.doe@example.com,Stock Price Prediction with PyTorch,English,7 July
-Sarah Connor,sarah.connor@example.com,Building Your First Local RAG Application with Foundry Local,English,12 July
-Player1,player1@gaming.com,Quantum Kickstart with Q#,English,25 July
-Zeynep Kara,zeynep.kara@mail.com,Quantum Kickstart with Q#,Turkish,18 August
-test user,test@test.com,Titanic Survival Analysis,English,3 August
+,ahmet.demir example.com,Titanic,English,1 August
+Deniz Arslan,deniz.arslan@example.com,Stock Price Prediction with PyTorch,English,7 July
+Selin Oz,selin.oz@example.com,Building Your First Local RAG Application with Foundry Local,English,12 July
+Player1,player1@example.com,Quantum Kickstart with Q#,English,25 July
+Zeynep Kara,zeynep.kara@example.com,Quantum Kickstart with Q#,Turkish,18 August
+test user,test@example.com,Titanic Survival Analysis,English,3 August

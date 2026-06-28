@@ -3,10 +3,9 @@ Audit Log - Immutable record of all agent actions.
 Uses SQLite for persistence.
 """
 
-import sqlite3
 import json
-from datetime import datetime
-from typing import Optional
+import sqlite3
+from datetime import datetime, timezone
 
 
 class AuditLog:
@@ -35,10 +34,10 @@ class AuditLog:
         conn.execute(
             "INSERT INTO audit_log (timestamp, action, target, details) VALUES (?, ?, ?, ?)",
             (
-                datetime.utcnow().isoformat(),
+                datetime.now(timezone.utc).isoformat(),
                 action,
                 target,
-                json.dumps(details) if details else None,
+                json.dumps(details, default=str) if details else None,
             ),
         )
         conn.commit()
@@ -46,6 +45,7 @@ class AuditLog:
 
     def get_recent(self, limit: int = 50) -> list[dict]:
         """Retrieve recent audit log entries."""
+        limit = max(1, min(int(limit), 200))
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
@@ -67,6 +67,7 @@ class AuditLog:
 
     def get_by_action(self, action: str, limit: int = 50) -> list[dict]:
         """Retrieve audit entries filtered by action type."""
+        limit = max(1, min(int(limit), 200))
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         rows = conn.execute(

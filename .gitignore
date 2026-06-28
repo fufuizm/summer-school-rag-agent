@@ -3,11 +3,17 @@ __pycache__/
 *.pyo
 *.egg-info/
 .env
+.DS_Store
 data/audit.db
+data/rag_index.json
 data/documents/*
 data/uploads/*
 !data/documents/.gitkeep
 !data/uploads/.gitkeep
 .venv/
 venv/
+.coverage
+.pytest_cache/
+.ruff_cache/
+htmlcov/
 *.log

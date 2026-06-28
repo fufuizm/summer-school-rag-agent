@@ -15,6 +15,9 @@ COPY data/ ./data/
 
 WORKDIR /app/backend
 
+ENV PYTHONUNBUFFERED=1
+ENV SUMMER_RAG_FORCE_FALLBACK=1
+
 EXPOSE 8000
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

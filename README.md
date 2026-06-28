@@ -1,96 +1,185 @@
 # Summer School RAG Agent
 
-A local-first enterprise AI assistant built with Microsoft Foundry Local. It enables grounded question answering over private documents and structured records, while safely handling record correction requests through validation, proposed patches, human approval, and audit logging.
+A local-first RAG and correction-review application for the Microsoft Summer School
+project track: **Building Your First Local RAG Application with Foundry Local**.
 
-## Project Overview
+The app indexes private documents locally, answers questions with citations, analyzes
+student registration records, proposes structured corrections, routes every proposed
+change through human approval, and records the workflow in a SQLite audit log.
 
-This project is built as part of the **Building Your First Local RAG Application with Foundry Local** track in the Microsoft Summer School program.
+## Why This Project Stands Out
 
-The agent addresses a real operational problem: student registration lists often contain name spelling errors, invalid email addresses, and incorrect project selections. Instead of manually reviewing each record, the agent:
+Most first RAG demos stop at "upload a PDF and chat with it." This project keeps the
+assigned Foundry Local RAG scope, then adds a realistic operations workflow:
 
-1. Ingests documents (PDF, TXT, CSV, XLSX, HTML) and creates a searchable knowledge base
-2. Answers natural language questions with source citations using local LLM + embeddings
-3. Detects problematic records in structured data (CSV/XLSX)
-4. Proposes corrections as structured JSON patches
-5. Routes corrections through an admin approval workflow
-6. Logs every action to an immutable audit trail
+1. Upload a project guide or student list.
+2. Ask grounded questions over the local document index.
+3. Detect invalid names, invalid emails, and non-standard project selections.
+4. Approve or reject proposed patches.
+5. Export the corrected CSV.
+6. Show a local audit trail for the full workflow.
 
 ## Architecture
 
-```
-User → Web UI (HTML/CSS/JS) → FastAPI Backend
-                                    ├── RAG Pipeline (Foundry Local)
-                                    │   ├── Document Ingestion
-                                    │   ├── Chunking + Embedding (qwen3-embedding-0.6b)
-                                    │   ├── Vector Search (cosine similarity)
-                                    │   └── Grounded Response (qwen2.5-0.5b)
-                                    ├── Correction Agent
-                                    │   ├── Name validation
-                                    │   ├── Email format check
-                                    │   ├── Project option validation
-                                    │   └── JSON patch generation
-                                    ├── Approval Workflow
-                                    │   ├── Admin review queue
-                                    │   ├── Approve / Reject
-                                    │   └── Record update
-                                    └── Audit Log (SQLite)
+```text
+Browser UI
+  |
+  | HTTP
+  v
+FastAPI backend
+  |-- DocumentParser: PDF, TXT, CSV, XLSX, HTML, DOCX
+  |-- RAGPipeline: Foundry Local embeddings/chat plus deterministic fallback
+  |-- CorrectionAgent: validation, patch proposals, approval workflow
+  |-- AuditLog: SQLite event trail
+  v
+Local data folder
 ```
 
-## Tech Stack
+Primary AI runtime:
 
-| Layer | Technology |
-|-------|-----------|
-| AI Runtime | Microsoft Foundry Local SDK |
-| Embedding Model | qwen3-embedding-0.6b |
-| Chat Model | qwen2.5-0.5b |
-| Backend | Python + FastAPI |
-| Frontend | HTML/CSS/JS (vanilla) |
-| Document Parsing | PyMuPDF, python-docx, openpyxl, pandas |
-| Database | SQLite |
-| Deployment | Docker Compose |
+- Embeddings: `qwen3-embedding-0.6b`
+- Chat: `qwen2.5-0.5b`
+- SDK: Microsoft Foundry Local SDK
+
+Development fallback:
+
+- Set `SUMMER_RAG_FORCE_FALLBACK=1`
+- Uses deterministic local hashing retrieval and extractive grounded snippets
+- Keeps tests and demos working even before Foundry Local models finish downloading
 
 ## Quick Start
 
+Use Python 3.11.
+
 ```bash
-# Install Foundry Local SDK
-pip install foundry-local-sdk openai
+git clone https://github.com/fufuizm/summer-school-rag-agent.git
+cd summer-school-rag-agent
 
-# Install backend dependencies
-pip install fastapi uvicorn pandas PyMuPDF python-docx openpyxl
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
 
-# Run the backend
+make test
+```
+
+Run the local demo without waiting for model downloads:
+
+```bash
+make api
+```
+
+In a second terminal:
+
+```bash
+make web
+```
+
+Open:
+
+- Frontend: http://localhost:3000
+- API docs: http://localhost:8000/docs
+
+For the real Foundry Local runtime, remove `SUMMER_RAG_FORCE_FALLBACK=1` and start the
+backend normally:
+
+```bash
 cd backend
 uvicorn main:app --reload --port 8000
-
-# Open the frontend
-cd frontend
-python3 -m http.server 3000
 ```
+
+The first real run downloads and loads the Foundry Local models.
+
+## Demo Flow
+
+1. Start backend and frontend.
+2. Upload `data/sample_project_guide.txt` in the Upload tab.
+3. Ask: `What is the Foundry Local RAG project about?`
+4. Upload `data/sample_students.csv`.
+5. Open Corrections and click Analyze.
+6. Approve safe project-standardization patches.
+7. Reject or leave manual identity/email fixes for human review.
+8. Export the corrected CSV.
+9. Open Audit to show the local event trail.
+
+## API Surface
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/health` | Runtime, document, record, and correction status |
+| `POST` | `/api/upload/document` | Index a document for RAG |
+| `POST` | `/api/chat` | Ask a grounded question |
+| `GET` | `/api/documents` | List indexed documents |
+| `DELETE` | `/api/documents` | Clear local RAG index |
+| `POST` | `/api/upload/records` | Load CSV/XLSX records |
+| `POST` | `/api/correction/analyze` | Generate correction proposals |
+| `POST` | `/api/correction/approve` | Approve or reject a proposal |
+| `GET` | `/api/correction/export/{file_id}` | Download corrected CSV |
+| `GET` | `/api/audit` | Read recent audit events |
 
 ## Project Structure
 
-```
+```text
 summer-school-rag-agent/
-├── backend/
-│   ├── main.py           # FastAPI app + routes
-│   ├── rag.py            # RAG pipeline (ingest, embed, search, answer)
-│   ├── correction.py     # Correction agent (validation + patch)
-│   ├── ingestion.py      # Document parsing (PDF, TXT, CSV, XLSX, HTML)
-│   └── audit.py           # Audit log (SQLite)
-├── frontend/
-│   ├── index.html         # Web UI
-│   ├── style.css          # Terminal-themed styles
-│   └── app.js             # Frontend logic
-├── data/
-│   ├── documents/         # Uploaded documents
-│   └── uploads/           # Uploaded CSV/XLSX files
-├── tests/
-│   └── test_rag.py        # Test cases
-├── docker-compose.yml
-├── Dockerfile
-├── requirements.txt
-└── README.md
+  backend/
+    audit.py
+    correction.py
+    ingestion.py
+    main.py
+    rag.py
+  data/
+    sample_project_guide.txt
+    sample_students.csv
+  docs/
+    architecture.md
+    azure-container-apps.md
+    demo-script.md
+    evaluation.md
+  frontend/
+    app.js
+    index.html
+    style.css
+  tests/
+    test_rag.py
+  Dockerfile
+  docker-compose.yml
+  Makefile
+  requirements.txt
+  requirements-dev.txt
 ```
+
+## Docker
+
+```bash
+docker compose up --build
+```
+
+Then open http://localhost:3000.
+
+## Azure Credit Usage
+
+Foundry Local runs on device, so the core project does not require cloud inference.
+The optional Azure story is deployment and presentation polish:
+
+- Containerize the FastAPI backend and static frontend.
+- Deploy to Azure Container Apps for a remote demo.
+- Keep the model-serving story local-first for privacy and cost control.
+
+See [docs/azure-container-apps.md](docs/azure-container-apps.md).
+
+## Testing
+
+```bash
+make test
+```
+
+The test suite forces fallback mode so it runs without downloading local LLM models.
+It covers document parsing, fallback RAG retrieval, correction detection, duplicate
+prevention, approval application, rejection persistence, and CSV export.
+
+## References
+
+- [Microsoft Learn: Build a RAG app with Foundry Local](https://learn.microsoft.com/en-us/azure/foundry-local/tutorials/tutorial-build-rag-app)
+- [Microsoft Learn: Foundry Local SDK reference](https://learn.microsoft.com/en-us/azure/foundry-local/reference/reference-sdk-current)
 
 ## License
 

@@ -33,10 +33,7 @@ Prerequisites: Basic Python, willingness to learn.
 - Final Presentations: July 27, 2026
 - Format: Fully remote
 
-## Contact
+## Demo Contact
 
-Barbaros Günay
-CSA Manager, CSU Turkey
-Microsoft
-Email: barbg@microsoft.com
-Phone: +90 212 370 5106
+Program coordinator contact details are intentionally omitted from this sample
+file. Use the official Microsoft Summer School channel for real communication.
